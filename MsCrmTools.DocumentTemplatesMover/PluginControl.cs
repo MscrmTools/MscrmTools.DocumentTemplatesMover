@@ -46,7 +46,7 @@ namespace MsCrmTools.DocumentTemplatesMover
         {
             get
             {
-                return "https://github.com/MscrmTools/DamSim.SolutionTransferTool/wiki";
+                return "https://github.com/MscrmTools/MscrmTools.DocumentTemplatesMover/wiki";
             }
         }
 
