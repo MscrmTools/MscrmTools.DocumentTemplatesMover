@@ -45,7 +45,9 @@ namespace MsCrmTools.DocumentTemplatesMover
         public void ReRouteEtcViaOpenXML(Entity template, string name, string etc, int? oldEtc, int? newEtc)
         {
             byte[] content = Convert.FromBase64String(template.GetAttributeValue<string>("content"));
-            MemoryStream contentStream = new MemoryStream(content);
+            MemoryStream contentStream = new MemoryStream();
+            contentStream.Write(content, 0, content.Length);
+            contentStream.Position = 0;
 
             string toFind = string.Format("{0}/{1}", etc, oldEtc);
             string replaceWith = string.Format("{0}/{1}", etc, newEtc);
