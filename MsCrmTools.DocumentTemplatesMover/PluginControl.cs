@@ -2,6 +2,7 @@
 using Microsoft.Xrm.Sdk;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
@@ -12,15 +13,12 @@ using XrmToolBox.Extensibility.Interfaces;
 
 namespace MsCrmTools.DocumentTemplatesMover
 {
-    public partial class PluginControl : UserControl, IXrmToolBoxPluginControl, IGitHubPlugin, IHelpPlugin, IStatusBarMessenger
+    public partial class PluginControl : MultipleConnectionsPluginControlBase, IGitHubPlugin, IHelpPlugin, IStatusBarMessenger
     {
         #region Variables
 
         private int currentsColumnOrder;
-        private ConnectionDetail detail;
-        private IOrganizationService service;
-        private IOrganizationService targetService;
-        private TemplatesManager tManager;
+        private readonly TemplatesManager tManager;
 
         #endregion Variables
 
@@ -36,92 +34,42 @@ namespace MsCrmTools.DocumentTemplatesMover
 
         #region XrmToolbox
 
-        public event EventHandler OnCloseTool;
-
-        public event EventHandler OnRequestConnection;
-
         public event EventHandler<StatusBarMessageEventArgs> SendMessageToStatusBar;
 
-        public string HelpUrl
+        public string HelpUrl => "https://github.com/MscrmTools/MscrmTools.DocumentTemplatesMover/wiki";
+
+        public string RepositoryName => "MsCrmTools.DocumentTemplatesMover";
+
+        public string UserName => "MscrmTools";
+
+        public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName = "", object parameter = null)
         {
-            get
+            ConnectionDetail = detail;
+            if (actionName == "AdditionalOrganization")
             {
-                return "https://github.com/MscrmTools/MscrmTools.DocumentTemplatesMover/wiki";
-            }
-        }
-
-        public Image PluginLogo
-        {
-            get { return imageList1.Images[0]; }
-        }
-
-        public string RepositoryName
-        {
-            get
-            {
-                return "MsCrmTools.DocumentTemplatesMover";
-            }
-        }
-
-        public IOrganizationService Service
-        {
-            get { return service; }
-        }
-
-        public string UserName
-        {
-            get
-            {
-                return "MscrmTools";
-            }
-        }
-
-        public string GetCompany()
-        {
-            return GetType().GetCompany();
-        }
-
-        public string GetMyType()
-        {
-            return GetType().FullName;
-        }
-
-        public string GetVersion()
-        {
-            return GetType().Assembly.GetName().Version.ToString();
-        }
-
-        public void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName = "", object parameter = null)
-        {
-            this.detail = detail;
-            if (actionName == "TargetOrganization")
-            {
-                targetService = newService;
+                AdditionalConnectionDetails.Clear();
+                AdditionalConnectionDetails.Add(detail);
                 SetConnectionLabel(detail, "Target");
             }
             else
             {
-                service = newService;
                 SetConnectionLabel(detail, "Source");
             }
+
+            base.UpdateConnection(newService, detail, actionName, parameter);
+        }
+
+        protected override void ConnectionDetailsUpdated(NotifyCollectionChangedEventArgs e)
+        {
         }
 
         #endregion XrmToolbox
 
         #region UI Events
 
-        private void BtnCloseClick(object sender, EventArgs e)
-        {
-            OnCloseTool(this, null);
-        }
-
         private void BtnSelectTargetClick(object sender, EventArgs e)
         {
-            if (OnRequestConnection != null)
-            {
-                var args = new RequestConnectionEventArgs { ActionName = "TargetOrganization", Control = this };
-                OnRequestConnection(this, args);
-            }
+            AddAdditionalOrganization();
         }
 
         private void lvTemplates_ColumnClick(object sender, ColumnClickEventArgs e)
@@ -141,23 +89,12 @@ namespace MsCrmTools.DocumentTemplatesMover
 
         private void TsbLoadTemplatesClick(object sender, EventArgs e)
         {
-            if (service == null)
-            {
-                if (OnRequestConnection != null)
-                {
-                    var args = new RequestConnectionEventArgs { Control = this };
-                    OnRequestConnection(this, args);
-                }
-            }
-            else
-            {
-                RetrieveTemplates();
-            }
+            ExecuteMethod(RetrieveTemplates);
         }
 
         private void TsbTransfertTemplatesClick(object sender, EventArgs e)
         {
-            if (lvTemplates.SelectedItems.Count > 0 && targetService != null)
+            if (lvTemplates.SelectedItems.Count > 0 && AdditionalConnectionDetails.Count > 0)
             {
                 var selectedTemplates = lvTemplates.SelectedItems.Cast<ListViewItem>().Select(item => (Entity)item.Tag).ToList();
 
@@ -173,6 +110,7 @@ namespace MsCrmTools.DocumentTemplatesMover
                     List<Entity> templates = (List<Entity>)evt.Argument;
                     var total = templates.Count;
                     var current = 0;
+                    var targetService = AdditionalConnectionDetails.First().GetCrmServiceClient();
 
                     foreach (var template in templates)
                     {
@@ -185,7 +123,7 @@ namespace MsCrmTools.DocumentTemplatesMover
 
                         try
                         {
-                            int? oldEtc = tManager.GetEntityTypeCode(service, etc);
+                            int? oldEtc = tManager.GetEntityTypeCode(Service, etc);
                             int? newEtc = tManager.GetEntityTypeCode(targetService, etc);
 
                             tManager.ReRouteEtcViaOpenXML(template, name, etc, oldEtc, newEtc);
@@ -206,7 +144,7 @@ namespace MsCrmTools.DocumentTemplatesMover
                             }
                             else
                             {
-                                Guid id = targetService.Create(templateToTransfer);
+                                targetService.Create(templateToTransfer);
                             }
 
                             Log(name, true);
@@ -219,13 +157,13 @@ namespace MsCrmTools.DocumentTemplatesMover
                 };
                 worker.ProgressChanged += (s, evt) =>
                 {
-                    SendMessageToStatusBar(this, new StatusBarMessageEventArgs(0, evt.UserState.ToString()));
+                    SendMessageToStatusBar?.Invoke(this, new StatusBarMessageEventArgs(0, evt.UserState.ToString()));
                 };
                 worker.RunWorkerCompleted += (s, evt) =>
                 {
                     if (evt.Error != null)
                     {
-                        MessageBox.Show(ParentForm, "An error has occured while transferring templates: " + evt.Error.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(ParentForm, @"An error has occured while transferring templates: " + evt.Error.Message, @"Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
 
                     tsbLoadTemplates.Enabled = true;
@@ -233,14 +171,14 @@ namespace MsCrmTools.DocumentTemplatesMover
                     btnSelectTarget.Enabled = true;
                     Cursor = Cursors.Default;
 
-                    SendMessageToStatusBar(this, new StatusBarMessageEventArgs(string.Empty));
+                    SendMessageToStatusBar?.Invoke(this, new StatusBarMessageEventArgs(string.Empty));
                 };
                 worker.WorkerReportsProgress = true;
                 worker.RunWorkerAsync(selectedTemplates);
             }
             else
             {
-                MessageBox.Show("You have to select at least one source template and a target organization to continue.", "Warning",
+                MessageBox.Show(@"You have to select at least one source template and a target organization to continue.", @"Warning",
                                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
@@ -251,15 +189,12 @@ namespace MsCrmTools.DocumentTemplatesMover
 
         private void Log(string name, bool succeeded, string message = null)
         {
-            if (this.InvokeRequired)
+            if (InvokeRequired)
             {
-                this.Invoke((MethodInvoker)delegate
+                Invoke((MethodInvoker)delegate
                 {
-                    lbLogs.Items.Add(string.Format("{0}: {1}{2}",
-                        succeeded ? "Success" : "Error",
-                        name,
-                        message != null ? " : " + message : ""
-                        ));
+                    lbLogs.Items.Add(
+                        $"{(succeeded ? "Success" : "Error")}: {name}{(message != null ? " : " + message : "")}");
                 });
             }
         }
@@ -276,12 +211,12 @@ namespace MsCrmTools.DocumentTemplatesMover
             btnSelectTarget.Enabled = false;
             Cursor = Cursors.WaitCursor;
 
-            SendMessageToStatusBar(this, new StatusBarMessageEventArgs("Loading templates..."));
+            SendMessageToStatusBar?.Invoke(this, new StatusBarMessageEventArgs("Loading templates..."));
 
             var bw = new BackgroundWorker();
             bw.DoWork += (sender, e) =>
             {
-                e.Result = tManager.GetTemplates(service);
+                e.Result = tManager.GetTemplates(Service);
             };
             bw.RunWorkerCompleted += (sender, e) =>
             {
@@ -297,7 +232,7 @@ namespace MsCrmTools.DocumentTemplatesMover
                 }
                 else
                 {
-                    MessageBox.Show(ParentForm, "An error has occured while loading templates: " + e.Error.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show(ParentForm, @"An error has occured while loading templates: " + e.Error.Message, @"Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
 
                 tsbLoadTemplates.Enabled = true;
@@ -305,7 +240,7 @@ namespace MsCrmTools.DocumentTemplatesMover
                 btnSelectTarget.Enabled = true;
                 Cursor = Cursors.Default;
 
-                SendMessageToStatusBar(this, new StatusBarMessageEventArgs(string.Empty));
+                SendMessageToStatusBar?.Invoke(this, new StatusBarMessageEventArgs(string.Empty));
             };
             bw.RunWorkerAsync();
         }
@@ -313,7 +248,7 @@ namespace MsCrmTools.DocumentTemplatesMover
         /// <summary>
         /// Sets the connections labels on either the source/target section
         /// </summary>
-        /// <param name="serviceToLabel"></param>
+        /// <param name="detail"></param>
         /// <param name="serviceType"></param>
         private void SetConnectionLabel(ConnectionDetail detail, string serviceType)
         {
@@ -332,17 +267,5 @@ namespace MsCrmTools.DocumentTemplatesMover
         }
 
         #endregion Methods
-
-        public void ClosingPlugin(PluginCloseInfo info)
-        {
-            if (info.FormReason != CloseReason.None ||
-                info.ToolBoxReason == ToolBoxCloseReason.CloseAll ||
-                info.ToolBoxReason == ToolBoxCloseReason.CloseAllExceptActive)
-            {
-                return;
-            }
-
-            info.Cancel = MessageBox.Show(@"Are you sure you want to close this tab?", @"Question", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes;
-        }
     }
 }

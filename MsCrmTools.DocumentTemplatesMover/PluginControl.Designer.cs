@@ -31,8 +31,6 @@
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(PluginControl));
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
-            this.btnClose = new System.Windows.Forms.ToolStripButton();
-            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.tsbLoadTemplates = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             this.tsbTransfertTemplates = new System.Windows.Forms.ToolStripButton();
@@ -66,8 +64,6 @@
             // toolStrip1
             // 
             this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.btnClose,
-            this.toolStripSeparator1,
             this.tsbLoadTemplates,
             this.toolStripSeparator2,
             this.tsbTransfertTemplates});
@@ -76,22 +72,6 @@
             this.toolStrip1.Size = new System.Drawing.Size(1200, 32);
             this.toolStrip1.TabIndex = 0;
             this.toolStrip1.Text = "toolStrip1";
-            // 
-            // btnClose
-            // 
-            this.btnClose.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
-            this.btnClose.Image = ((System.Drawing.Image)(resources.GetObject("btnClose.Image")));
-            this.btnClose.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.btnClose.Name = "btnClose";
-            this.btnClose.Size = new System.Drawing.Size(28, 29);
-            this.btnClose.Text = "Close this tool";
-            this.btnClose.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.btnClose.Click += new System.EventHandler(this.BtnCloseClick);
-            // 
-            // toolStripSeparator1
-            // 
-            this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(6, 32);
             // 
             // tsbLoadTemplates
             // 
@@ -351,7 +331,6 @@
         #endregion
 
         private System.Windows.Forms.ToolStrip toolStrip1;
-        private System.Windows.Forms.ToolStripButton btnClose;
         private System.Windows.Forms.GroupBox grpSourceSolution;
         private System.Windows.Forms.ListView lvTemplates;
         private System.Windows.Forms.Button btnSelectTarget;
@@ -359,7 +338,6 @@
         private System.Windows.Forms.Label lblSource;
         private System.Windows.Forms.Label lblTarget;
         private System.Windows.Forms.ImageList imageList1;
-        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
         private System.Windows.Forms.ToolStripButton tsbLoadTemplates;
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.Label label2;
